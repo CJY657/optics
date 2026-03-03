@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CHROMA LAB V11：广义干涉光学终端 (舒适视效版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;700;900&display=swap");
+
+      body {
+        background-color: #020617;
+        color: #e2e8f0;
+        font-family: "Noto Sans SC", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        background-image: radial-gradient(
+          circle at 50% 50%,
+          #0f172a 0%,
+          #000000 100%
+        );
+      }
+
+      .font-mono {
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      #terminal {
+        width: 98vw;
+        height: 97vh;
+        max-width: 1600px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        border-radius: 12px;
+        box-shadow: 0 0 80px rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(20px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .glass-panel {
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .text-glow {
+        text-shadow: 0 0 15px currentColor;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        width: 100%;
+        background: transparent;
+        cursor: pointer;
+        padding: 6px 0;
+      }
+      input[type="range"]:focus {
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 24px;
+        width: 10px;
+        background: #38bdf8;
+        margin-top: -9px;
+        box-shadow: 0 0 12px #38bdf8;
+        transition: transform 0.1s;
+        border-radius: 2px;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.3);
+        background: #fff;
+      }
+
+      .hidden-layer {
+        display: none !important;
+      }
+      .fade-in {
+        animation: fadeIn 0.4s ease forwards;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* 增大了顶部光路图的整体比例 */
+      .optical-bench {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        padding: 4px 40px;
+      }
+      .beam-line {
+        position: absolute;
+        height: 6px;
+        z-index: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: background-color 0.1s;
+        box-shadow: 0 0 12px currentColor;
+      }
+      .component-node {
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #0f172a;
+        border: 2px solid #38bdf8;
+        padding: 6px 8px;
+        border-radius: 10px;
+        width: 100px;
+        text-align: center;
+      }
+      .lens {
+        width: 40px;
+        height: 55px;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 20px / 27.5px;
+        margin: 0 auto 4px auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.5);
+      }
+      .lens-line {
+        width: 3px;
+        height: 100%;
+        background: #38bdf8;
+        transition: transform 0.1s;
+      }
+      .lens-crystal {
+        background: rgba(217, 70, 239, 0.2);
+        border-color: rgba(217, 70, 239, 0.8);
+      }
+
+      .nav-btn {
+        transition: all 0.2s;
+        cursor: pointer;
+        border: 1px solid transparent;
+      }
+      .nav-btn.locked {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .nav-btn:hover:not(.locked) {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.1);
+      }
+      .nav-btn.active {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.2);
+        box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.3);
+      }
+
+      .meter-bar {
+        transition:
+          width 0.1s linear,
+          background-color 0.3s;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal">
+      <div
+        class="h-28 border-b border-sky-900/50 bg-slate-900/60 flex flex-col justify-center px-6 relative flex-shrink-0"
+      >
+        <p
+          class="absolute top-3 left-5 text-xs text-sky-400/60 font-mono uppercase tracking-widest"
+        >
+          >> Optical Bench Schematic
+        </p>
+        <div class="optical-bench mt-4">
+          <div
+            class="beam-line"
+            id="beam1"
+            style="left: 80px; right: 80%; background: white"
+          ></div>
+          <div
+            class="beam-line"
+            id="beam2"
+            style="left: 20%; right: 50%; background: white"
+          ></div>
+          <div
+            class="beam-line"
+            id="beam3"
+            style="left: 50%; right: 20%; background: white"
+          ></div>
+          <div
+            class="beam-line"
+            id="beamFinal"
+            style="left: 80%; right: 80px; background: white"
+          ></div>
+
+          <div class="component-node border-slate-500">
+            <div class="text-2xl mb-1" id="lightSourceIcon">💡</div>
+            <span
+              class="text-xs font-mono text-slate-300 font-bold"
+              id="lightSourceLabel"
+              >单色绿光</span
+            >
+          </div>
+
+          <div class="component-node">
+            <div class="lens">
+              <div
+                class="lens-line"
+                style="transform: rotate(0deg); width: 100%; height: 3px"
+              ></div>
+            </div>
+            <span class="text-xs font-mono text-sky-400 font-bold"
+              >起偏器(0°)</span
+            >
+          </div>
+
+          <div class="component-node !border-fuchsia-500">
+            <div class="lens lens-crystal" id="schemCrystal">
+              <div
+                class="w-full h-full border-t-[3px] border-b-[3px] border-white/50 transition-transform duration-100"
+                id="schemCrystalAxis"
+              ></div>
+            </div>
+            <span class="text-xs font-mono text-fuchsia-400 font-bold"
+              >晶体(α=<span id="schemAlpha">0</span>°)</span
+            >
+          </div>
+
+          <div class="component-node">
+            <div class="lens">
+              <div
+                class="lens-line"
+                id="schemAnalyzer"
+                style="transform: rotate(0deg)"
+              ></div>
+            </div>
+            <span class="text-xs font-mono text-sky-400 font-bold"
+              >检偏器(θ=<span id="schemTheta">90</span>°)</span
+            >
+          </div>
+
+          <div class="component-node border-emerald-500">
+            <div class="text-2xl mb-1">👁️</div>
+            <span class="text-xs font-mono text-emerald-400 font-bold"
+              >探测器</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-grow flex relative">
+        <div
+          class="w-[380px] border-r border-sky-900/50 flex flex-col p-4 z-30 bg-slate-950/95"
+        >
+          <div class="mb-2">
+            <h1
+              class="text-2xl font-black text-sky-400 font-mono tracking-widest text-glow mb-0"
+            >
+              CHROMA
+            </h1>
+            <p
+              class="text-[10px] text-slate-500 uppercase font-bold tracking-wider"
+            >
+              Generalized Interference Engine
+            </p>
+          </div>
+
+          <div class="mb-3">
+            <div
+              class="glass-panel p-3 rounded-lg font-mono text-sky-300 shadow-lg"
+            >
+              <p class="text-slate-400 text-[10px] mb-1">
+                广义偏振干涉方程 (Generalized Eq.)
+              </p>
+              <p
+                class="text-white font-bold text-sm tracking-tight mb-2 border-b border-sky-900/50 pb-2"
+              >
+                I = cos²(θ) - sin(2α)sin(2α-2θ)sin²(πR/λ)
+              </p>
+              <div
+                class="grid grid-cols-2 gap-y-2 gap-x-3 text-slate-300 text-xs"
+              >
+                <p>
+                  α (晶体光轴):
+                  <span
+                    id="dataAlpha"
+                    class="text-fuchsia-400 font-bold text-sm"
+                    >0°</span
+                  >
+                </p>
+                <p>
+                  R (微观光程):
+                  <span id="dataRet" class="text-amber-400 font-bold text-sm"
+                    >0 nm</span
+                  >
+                </p>
+                <p>
+                  θ (检偏角):
+                  <span id="dataTheta" class="text-sky-400 font-bold text-sm"
+                    >90°</span
+                  >
+                </p>
+                <p>
+                  I (探测透射):
+                  <span
+                    id="dataTrans"
+                    class="text-emerald-400 font-bold text-base"
+                    >0.0%</span
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex-grow flex flex-col min-h-0">
+            <div class="flex justify-between items-center mb-1">
+              <h3
+                class="text-xs text-slate-400 font-bold uppercase tracking-wider"
+              >
+                相干干涉光谱 (400-700nm)
+              </h3>
+            </div>
+            <div
+              class="glass-panel p-2 rounded-lg flex-grow relative shadow-inner w-full min-h-0"
+            >
+              <canvas id="spectrumCanvas" class="w-full h-full"></canvas>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-sky-900/50 flex-shrink-0">
+            <p
+              class="text-[10px] text-slate-500 font-mono mb-2 uppercase tracking-wider"
+            >
+              Protocol Navigation 导航
+            </p>
+            <div class="grid grid-cols-5 gap-1.5" id="navContainer"></div>
+          </div>
+        </div>
+
+        <div class="flex-grow flex flex-col relative bg-slate-900/40">
+          <div class="px-4 py-2 z-20 flex-shrink-0">
+            <div
+              class="glass-panel rounded-xl p-3 border-l-[4px] border-sky-500 flex justify-between items-center bg-slate-900/80 backdrop-blur-md"
+            >
+              <div class="max-w-2xl">
+                <h2
+                  id="levelTitle"
+                  class="text-lg font-black text-white mb-1 text-glow"
+                >
+                  L1：相位延迟探秘
+                </h2>
+                <p
+                  id="levelDesc"
+                  class="text-slate-300 text-xs leading-relaxed"
+                >
+                  ...
+                </p>
+              </div>
+              <div class="text-right pl-4 flex-shrink-0">
+                <p
+                  class="text-[10px] text-slate-400 uppercase tracking-widest mb-1 font-bold"
+                >
+                  Objective
+                </p>
+                <div
+                  id="targetBox"
+                  class="text-base font-black text-yellow-400 font-mono text-glow transition-colors"
+                >
+                  找到最大透射角
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="flex-grow flex items-center justify-center relative z-10 px-4 py-1 min-h-0"
+          >
+            <div
+              id="viewSensor"
+              class="flex flex-col items-center justify-center w-full fade-in"
+            >
+              <div
+                id="intensityBarContainer"
+                class="w-full max-w-lg mb-3 glass-panel p-3 rounded-xl"
+              >
+                <div
+                  class="flex justify-between text-sm text-slate-400 mb-2 font-mono font-bold"
+                >
+                  <span>0% (消光)</span><span>100% (满射)</span>
+                </div>
+                <div
+                  class="w-full h-6 bg-slate-800 rounded-full overflow-hidden border border-slate-700 shadow-inner"
+                >
+                  <div
+                    id="intensityMeter"
+                    class="meter-bar h-full bg-emerald-500 w-0"
+                  ></div>
+                </div>
+              </div>
+              <div
+                class="w-[260px] h-[260px] border-[4px] border-slate-700 rounded-full flex items-center justify-center relative bg-black shadow-[0_0_80px_rgba(0,0,0,0.9)_inset] overflow-hidden"
+              >
+                <div
+                  id="sensorColor"
+                  class="absolute inset-0 transition-colors duration-100 opacity-90"
+                ></div>
+                <div
+                  id="sensorCrystal"
+                  class="absolute inset-0 transition-transform duration-100 flex items-center justify-center pointer-events-none"
+                >
+                  <div
+                    class="w-1.5 h-[80%] bg-white/50 rounded-full shadow-[0_0_15px_#fff]"
+                  ></div>
+                </div>
+                <div
+                  id="sensorGrid"
+                  class="absolute inset-0 mix-blend-overlay transition-transform duration-200"
+                  style="
+                    background: repeating-linear-gradient(
+                      0deg,
+                      transparent,
+                      transparent 6px,
+                      rgba(255, 255, 255, 0.2) 6px,
+                      rgba(255, 255, 255, 0.2) 9px
+                    );
+                  "
+                ></div>
+              </div>
+            </div>
+
+            <div
+              id="viewStress"
+              class="hidden-layer fade-in flex-col items-center w-full"
+            >
+              <canvas
+                id="stressCanvas"
+                width="600"
+                height="320"
+                class="w-[580px] h-[300px] border-[4px] border-slate-700 rounded-[28px] shadow-[0_0_80px_rgba(0,0,0,0.8)] bg-black cursor-crosshair"
+              ></canvas>
+              <p class="text-xs text-slate-400 mt-3 font-bold tracking-widest">
+                >> 点击画布内结构件扫描应力隐患
+              </p>
+            </div>
+
+            <div
+              id="viewArt"
+              class="hidden-layer fade-in flex-col items-center"
+            >
+              <div
+                class="relative w-[360px] h-[360px] border-[4px] border-slate-800 bg-white shadow-2xl"
+              >
+                <canvas
+                  id="artCanvas"
+                  width="420"
+                  height="420"
+                  class="w-full h-full"
+                ></canvas>
+                <div
+                  id="artAnalyzer"
+                  class="absolute inset-0 transition-transform duration-100 mix-blend-multiply"
+                  style="background: rgba(0, 0, 0, 0.1)"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-4 py-2 z-40 flex-shrink-0">
+            <div
+              class="max-w-4xl mx-auto glass-panel p-3 rounded-xl flex gap-4 backdrop-blur-xl shadow-2xl relative"
+            >
+              <div id="ctrlAlpha" class="flex-1">
+                <label
+                  class="block text-xs text-fuchsia-400 font-bold mb-1 flex justify-between font-mono uppercase"
+                >
+                  <span>晶体光轴角 (α)</span
+                  ><span id="labelAlpha" class="text-white text-sm">0°</span>
+                </label>
+                <input
+                  type="range"
+                  id="sliderAlpha"
+                  min="0"
+                  max="90"
+                  step="1"
+                  value="0"
+                  class="accent-fuchsia-500"
+                />
+              </div>
+              <div id="ctrlRet" class="flex-1 hidden-layer">
+                <label
+                  class="block text-xs text-amber-400 font-bold mb-1 flex justify-between font-mono uppercase"
+                >
+                  <span>晶体厚度光程 (R)</span
+                  ><span id="labelRet" class="text-white text-sm">0 nm</span>
+                </label>
+                <input
+                  type="range"
+                  id="sliderRet"
+                  min="0"
+                  max="1500"
+                  step="5"
+                  value="0"
+                  class="accent-amber-500"
+                />
+              </div>
+              <div id="ctrlTheta" class="flex-1 hidden-layer">
+                <label
+                  class="block text-xs text-sky-400 font-bold mb-1 flex justify-between font-mono uppercase"
+                >
+                  <span>检偏器绝对角 (θ)</span
+                  ><span id="labelTheta" class="text-white text-sm">90°</span>
+                </label>
+                <input
+                  type="range"
+                  id="sliderTheta"
+                  min="0"
+                  max="90"
+                  step="1"
+                  value="90"
+                  class="accent-sky-500"
+                />
+              </div>
+              <div id="ctrlForce" class="flex-1 hidden-layer">
+                <label
+                  class="block text-xs text-red-400 font-bold mb-1 flex justify-between font-mono uppercase"
+                >
+                  <span>施加机械应力 (N)</span
+                  ><span id="labelForce" class="text-white text-sm">0 N</span>
+                </label>
+                <input
+                  type="range"
+                  id="sliderForce"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="0"
+                  class="accent-red-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        id="modalArchive"
+        class="absolute inset-0 z-50 pointer-events-none hidden-layer flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+      >
+        <div
+          class="w-[400px] glass-panel border-2 border-emerald-500/50 rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.9)] backdrop-blur-xl pointer-events-auto fade-in bg-slate-900/95 text-center"
+        >
+          <div class="flex items-center justify-center gap-3 mb-4">
+            <div
+              class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"
+            ></div>
+            <h2
+              id="modalTitle"
+              class="text-xl font-black text-emerald-400 tracking-tighter font-mono uppercase"
+            >
+              DATA UNLOCKED
+            </h2>
+          </div>
+          <h3
+            id="modalSub"
+            class="text-base text-white mb-4 font-bold opacity-90"
+          >
+            小节通关
+          </h3>
+          <p
+            id="modalText"
+            class="text-slate-300 text-sm leading-relaxed mb-6 border-l-2 border-emerald-500/30 pl-4 text-left"
+          >
+            解释内容...
+          </p>
+          <button
+            id="modalBtn"
+            class="w-full py-3 bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-all tracking-widest uppercase shadow-lg"
+          >
+            NEXT STAGE >>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- 物理引擎保持绝对原样，不触碰底层逻辑 ---
+      function colorMatch(wave) {
+        let x =
+          Math.exp(-Math.pow((wave - 595.8) / 33.33, 2) * 0.5) * 1.065 +
+          Math.exp(-Math.pow((wave - 446.8) / 19.44, 2) * 0.366);
+        let y = Math.exp(-Math.pow((wave - 556.3) / 39.14, 2) * 0.5) * 1.014;
+        let z = Math.exp(-Math.pow((wave - 449.8) / 29.08, 2) * 0.5) * 1.839;
+        return { x, y, z };
+      }
+
+      function calculatePhysics(R, alpha, theta, isMono) {
+        let X = 0,
+          Y = 0,
+          Z = 0;
+        const aRad = (alpha * Math.PI) / 180;
+        const tRad = (theta * Math.PI) / 180;
+        let specData = [];
+        let monoTrans = 0;
+
+        for (let lambda = 400; lambda <= 700; lambda += 2) {
+          let delta_2 = (Math.PI * R) / lambda;
+          let T =
+            Math.pow(Math.cos(tRad), 2) -
+            Math.sin(2 * aRad) *
+              Math.sin(2 * aRad - 2 * tRad) *
+              Math.pow(Math.sin(delta_2), 2);
+          T = Math.max(0, Math.min(1, T));
+
+          if (isMono) {
+            if (lambda === 550) monoTrans = T;
+            else T = 0;
+          }
+          specData.push({ l: lambda, t: T });
+
+          if (lambda % 5 === 0 && (!isMono || lambda === 550)) {
+            let xyz = colorMatch(lambda);
+            X += T * xyz.x;
+            Y += T * xyz.y;
+            Z += T * xyz.z;
+          }
+        }
+
+        let r = 3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z;
+        let g = -0.969266 * X + 1.8760108 * Y + 0.041556 * Z;
+        let b = 0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z;
+
+        const exposure = isMono ? 0.8 : 0.06;
+        r = Math.max(0, Math.min(1, r * exposure));
+        g = Math.max(0, Math.min(1, g * exposure));
+        b = Math.max(0, Math.min(1, b * exposure));
+        r = r <= 0.0031308 ? 12.92 * r : 1.055 * Math.pow(r, 1 / 2.4) - 0.055;
+        g = g <= 0.0031308 ? 12.92 * g : 1.055 * Math.pow(g, 1 / 2.4) - 0.055;
+        b = b <= 0.0031308 ? 12.92 * b : 1.055 * Math.pow(b, 1 / 2.4) - 0.055;
+
+        return {
+          r: Math.floor(r * 255),
+          g: Math.floor(g * 255),
+          b: Math.floor(b * 255),
+          spectrum: specData,
+          trans: monoTrans,
+        };
+      }
+
+      let colorCache = {};
+      function getCachedColor(r) {
+        let idx = Math.floor(r / 10) * 10;
+        if (idx > 3000) idx = 3000;
+        if (!colorCache[idx]) {
+          colorCache[idx] = calculatePhysics(idx, 45, 90, false);
+        }
+        return colorCache[idx];
+      }
+
+      let state = {
+        level: 1,
+        maxLvl: 1,
+        a: 0,
+        r: 0,
+        t: 90,
+        force: 0,
+        mono: true,
+      };
+      let hasTriggeredWin = false;
+      const specCanvas = document.getElementById("spectrumCanvas");
+      const specCtx = specCanvas.getContext("2d");
+
+      function updateUI() {
+        document.getElementById("labelAlpha").innerText = state.a + "°";
+        document.getElementById("sliderAlpha").value = state.a;
+        document.getElementById("labelRet").innerText = state.r + " nm";
+        document.getElementById("sliderRet").value = state.r;
+        document.getElementById("labelTheta").innerText = state.t + "°";
+        document.getElementById("sliderTheta").value = state.t;
+        document.getElementById("labelForce").innerText = state.force + " N";
+        document.getElementById("sliderForce").value = state.force;
+      }
+
+      function renderNav() {
+        const container = document.getElementById("navContainer");
+        container.innerHTML = "";
+        const names = ["L1.寻光", "L2.干涉", "L3.翻转", "L4.显影", "L5.艺术"];
+        for (let i = 1; i <= 5; i++) {
+          const btn = document.createElement("div");
+          btn.className = `nav-btn rounded-lg p-3 text-center text-sm font-mono font-bold ${i <= state.maxLvl ? "text-sky-300" : "locked text-slate-600 bg-slate-900"} ${i === state.level ? "active" : ""}`;
+          btn.innerText = names[i - 1];
+          btn.onclick = () => {
+            if (i <= state.maxLvl && i !== state.level) loadLevel(i);
+          };
+          container.appendChild(btn);
+        }
+      }
+
+      function updateEngine() {
+        updateUI();
+        const phys = calculatePhysics(state.r, state.a, state.t, state.mono);
+
+        let T_display = state.mono
+          ? phys.trans
+          : (phys.r + phys.g + phys.b) / (255 * 3);
+        if (!state.mono) T_display = Math.max(0.05, T_display);
+
+        const colorStr = state.mono
+          ? `rgba(74, 222, 128, ${phys.trans})`
+          : `rgb(${phys.r}, ${phys.g}, ${phys.b})`;
+        const beamColor = state.mono
+          ? `rgba(74, 222, 128, ${Math.max(0.1, phys.trans)})`
+          : `rgba(${phys.r || 255}, ${phys.g || 255}, ${phys.b || 255}, ${T_display + 0.2})`;
+
+        document.getElementById("schemAlpha").innerText = state.a;
+        document.getElementById("schemTheta").innerText = state.t;
+        document.getElementById("schemCrystalAxis").style.transform =
+          `rotate(${-state.a}deg)`;
+        document.getElementById("schemAnalyzer").style.transform =
+          `rotate(${90 - state.t}deg)`;
+
+        document.getElementById("beam2").style.backgroundColor = state.mono
+          ? "#4ade80"
+          : "white";
+        document.getElementById("beam3").style.backgroundColor = state.mono
+          ? "#4ade80"
+          : "white";
+        document.getElementById("beamFinal").style.backgroundColor = beamColor;
+        document.getElementById("beamFinal").style.boxShadow =
+          `0 0 15px ${beamColor}`;
+
+        document.getElementById("dataAlpha").innerText = state.a + "°";
+        document.getElementById("dataRet").innerText =
+          state.level === 4 ? "非均匀分布" : state.r + " nm";
+        document.getElementById("dataTheta").innerText =
+          state.t +
+          (state.t === 90 ? "°(正交)" : state.t === 0 ? "°(平行)" : "°");
+        document.getElementById("dataTrans").innerText =
+          (phys.trans * 100).toFixed(1) + "%";
+
+        document.getElementById("sensorColor").style.backgroundColor = colorStr;
+        document.getElementById("sensorCrystal").style.transform =
+          `rotate(${-state.a}deg)`;
+        document.getElementById("sensorGrid").style.transform =
+          `rotate(${state.t}deg)`;
+        document.getElementById("intensityMeter").style.width =
+          `${phys.trans * 100}%`;
+
+        const w = specCanvas.width,
+          h = specCanvas.height;
+        specCtx.clearRect(0, 0, w, h);
+        specCtx.beginPath();
+        specCtx.strokeStyle = "#38bdf8";
+        specCtx.lineWidth = 3;
+        phys.spectrum.forEach((pt, i) => {
+          let x = (i / phys.spectrum.length) * w,
+            y = h - pt.t * h * 0.8 - 2;
+          if (i === 0) specCtx.moveTo(x, y);
+          else specCtx.lineTo(x, y);
+        });
+        specCtx.stroke();
+
+        if (
+          !hasTriggeredWin &&
+          state.level === 1 &&
+          Math.abs(state.a - 45) <= 2
+        ) {
+          hasTriggeredWin = true;
+          levelWin(
+            "L1 寻光成功！",
+            "晶体的相位延迟作用",
+            `物理真相：晶体转动到45°时，最大程度改变了偏振状态，光线成功逃脱了90°的正交封锁。`,
+          );
+        }
+        if (
+          !hasTriggeredWin &&
+          state.level === 2 &&
+          state.r > 530 &&
+          state.r < 570
+        ) {
+          hasTriggeredWin = true;
+          levelWin(
+            "L2 创世之光！",
+            "干涉制造色彩",
+            `调节厚度到550nm附近，精准切掉了绿光波段，红蓝混合形成了紫红色。`,
+          );
+        }
+        if (!hasTriggeredWin && state.level === 3 && state.t === 0) {
+          hasTriggeredWin = true;
+          levelWin(
+            "L3 翻转成功！",
+            "偏振态与互补色",
+            "检偏器平行时，透射光谱与正交时完全互补。你见证了自然界完美的互补色翻转！",
+          );
+        }
+      }
+
+      function levelWin(title, sub, text) {
+        document.getElementById("targetBox").className =
+          "text-base font-black text-emerald-400 font-mono text-glow transition-colors";
+        document.getElementById("targetBox").innerText = "OBJECTIVE CLEARED";
+        document.getElementById("modalTitle").innerText = title;
+        document.getElementById("modalSub").innerText = sub;
+        document.getElementById("modalText").innerHTML = text;
+        const m = document.getElementById("modalArchive");
+        m.classList.remove("hidden-layer");
+
+        document.getElementById("modalBtn").onclick = () => {
+          m.classList.add("hidden-layer");
+          if (state.level + 1 > state.maxLvl) state.maxLvl = state.level + 1;
+          if (state.level < 5) {
+            loadLevel(state.level + 1);
+          } else {
+            renderNav();
+          }
+        };
+      }
+
+      function loadLevel(lv) {
+        hasTriggeredWin = false;
+        state.level = lv;
+        renderNav();
+
+        ["ctrlAlpha", "ctrlRet", "ctrlTheta", "ctrlForce"].forEach((id) =>
+          document.getElementById(id).classList.add("hidden-layer"),
+        );
+        ["viewSensor", "viewStress", "viewArt"].forEach((id) =>
+          document.getElementById(id).classList.add("hidden-layer"),
+        );
+        document.getElementById("targetBox").className =
+          "text-base font-black text-yellow-400 font-mono text-glow transition-colors";
+        document
+          .getElementById("intensityBarContainer")
+          .classList.add("hidden-layer");
+
+        if (lv === 1) {
+          document
+            .getElementById("viewSensor")
+            .classList.remove("hidden-layer");
+          document.getElementById("ctrlAlpha").classList.remove("hidden-layer");
+          document
+            .getElementById("intensityBarContainer")
+            .classList.remove("hidden-layer");
+          state.mono = true;
+          state.a = 0;
+          state.r = 275;
+          state.t = 90;
+          document.getElementById("lightSourceLabel").innerText = "单色绿光";
+          document.getElementById("lightSourceIcon").innerText = "🟩";
+          document.getElementById("levelTitle").innerText =
+            "L1. 寻光：打破正交黑暗";
+          document.getElementById("levelDesc").innerText =
+            "请看上方光路：绿光遇到 90° 正交的检偏器全黑。但在中间加入了一块微观晶体。请拖动 α 滑块，找到能让绿光重新穿透的能量最大角度 (45°)。";
+          document.getElementById("targetBox").innerText = "寻找能量满格角度";
+        } else if (lv === 2) {
+          document
+            .getElementById("viewSensor")
+            .classList.remove("hidden-layer");
+          document.getElementById("ctrlRet").classList.remove("hidden-layer");
+          state.mono = false;
+          state.a = 45;
+          state.r = 0;
+          state.t = 90;
+          document.getElementById("lightSourceLabel").innerText = "全光谱白光";
+          document.getElementById("lightSourceIcon").innerText = "💡";
+          document.getElementById("levelTitle").innerText =
+            "L2. 创世：雕刻干涉色";
+          document.getElementById("levelDesc").innerText =
+            "光源已切为白光，请缓慢拖拽下方厚度(R)滑块。观察左侧光谱仪波谷的移动，切断特定波长，从而混合出 一阶紫红色 (Magenta)！";
+          document.getElementById("targetBox").innerText = "R滑至550nm调出紫红";
+        } else if (lv === 3) {
+          document
+            .getElementById("viewSensor")
+            .classList.remove("hidden-layer");
+          document.getElementById("ctrlTheta").classList.remove("hidden-layer");
+          state.mono = false;
+          state.a = 45;
+          state.r = 550;
+          state.t = 90;
+          document.getElementById("levelTitle").innerText =
+            "L3. 翻转：物理补色对调";
+          document.getElementById("levelDesc").innerText =
+            "现在，请将检偏器(θ)从 90°(正交) 旋转至 0°(平行)。观察光谱仪波谷变为波峰的奇迹，见证大自然完美的互补色对调！";
+          document.getElementById("targetBox").innerText = "检偏器 θ 转至 0°";
+        } else if (lv === 4) {
+          document
+            .getElementById("viewStress")
+            .classList.remove("hidden-layer");
+          document.getElementById("ctrlForce").classList.remove("hidden-layer");
+          state.mono = false;
+          state.a = 45;
+          state.r = 0;
+          state.t = 90;
+          state.force = 0;
+          document.getElementById("levelTitle").innerText =
+            "L4. 显影：工业光弹探伤";
+          document.getElementById("levelDesc").innerText =
+            "色偏振对光程差极敏感。施加拉力(N)，观察模型内部色彩显影，找出干涉色最密集的隐患核心点并点击它！";
+          document.getElementById("targetBox").innerText = "施加应力寻找集中点";
+          initStressGame();
+        } else if (lv === 5) {
+          document.getElementById("viewArt").classList.remove("hidden-layer");
+          document.getElementById("ctrlTheta").classList.remove("hidden-layer");
+          state.mono = false;
+          state.t = 0;
+          state.a = 0;
+          state.r = 0;
+          document.getElementById("levelTitle").innerText =
+            "L5. 艺术：光之时空画笔";
+          document.getElementById("levelDesc").innerText =
+            "在平行偏振下它几乎是白纸。现在，将检偏器(θ)旋至 90°(正交)，触发全画幅的光谱补色反转，唤醒隐藏的名画！";
+          document.getElementById("targetBox").innerText =
+            "θ 转至 90° 复原名画";
+          drawArt(state.t);
+        }
+
+        setTimeout(() => {
+          specCanvas.width = specCanvas.offsetWidth;
+          specCanvas.height = specCanvas.offsetHeight;
+          updateEngine();
+        }, 50);
+      }
+
+      document.getElementById("sliderAlpha").addEventListener("input", (e) => {
+        state.a = parseFloat(e.target.value);
+        updateEngine();
+      });
+      document.getElementById("sliderRet").addEventListener("input", (e) => {
+        state.r = parseInt(e.target.value);
+        updateEngine();
+      });
+      document.getElementById("sliderTheta").addEventListener("input", (e) => {
+        state.t = parseInt(e.target.value);
+        updateEngine();
+        if (state.level === 5) {
+          drawArt(state.t);
+          if (state.t === 90 && !hasTriggeredWin) {
+            hasTriggeredWin = true;
+            setTimeout(() => {
+              document.getElementById("modalBtn").innerText =
+                "开启全关卡自由探索 ↺";
+              levelWin(
+                "FINAL：时空流动色彩",
+                "科学与艺术的终极浪漫",
+                "恭喜通关！通过严谨的干涉方程，你不仅理解了原理，还排除了工程隐患、唤醒了艺术。<br>左下角已全线解锁，尽情探索吧！",
+              );
+            }, 500);
+          }
+        }
+      });
+
+      let offCanvas = document.createElement("canvas");
+      offCanvas.width = 600;
+      offCanvas.height = 320;
+      let offCtx = offCanvas.getContext("2d");
+
+      function initStressGame() {
+        const canvas = document.getElementById("stressCanvas");
+        const sCtx = canvas.getContext("2d");
+        const dangerPt = { x: 450, y: 120 };
+
+        function drawBase() {
+          sCtx.clearRect(0, 0, 600, 320);
+          sCtx.beginPath();
+          sCtx.strokeStyle = "rgba(255,255,255,0.2)";
+          sCtx.lineWidth = 4;
+          sCtx.roundRect(80, 60, 440, 200, 30);
+          sCtx.stroke();
+        }
+        drawBase();
+
+        document.getElementById("sliderForce").oninput = (e) => {
+          state.force = parseInt(e.target.value);
+          document.getElementById("labelForce").innerText = state.force + " N";
+          document.getElementById("dataRet").innerText = "非均匀分布";
+
+          if (state.force === 0) {
+            drawBase();
+            return;
+          }
+
+          const imgData = offCtx.createImageData(600, 320);
+          const data = imgData.data;
+          const alpha = state.force > 5 ? 255 : 30;
+
+          for (let y = 50; y < 270; y += 4) {
+            for (let x = 70; x < 530; x += 4) {
+              let d = Math.max(
+                5,
+                Math.sqrt((x - dangerPt.x) ** 2 + (y - dangerPt.y) ** 2),
+              );
+              let simulatedRet = (15000 / d) * (state.force / 100);
+              let c = getCachedColor(simulatedRet);
+
+              for (let dy = 0; dy < 4; dy++) {
+                for (let dx = 0; dx < 4; dx++) {
+                  let i = ((y + dy) * 600 + (x + dx)) * 4;
+                  data[i] = c.r;
+                  data[i + 1] = c.g;
+                  data[i + 2] = c.b;
+                  data[i + 3] = alpha;
+                }
+              }
+            }
+          }
+          offCtx.putImageData(imgData, 0, 0);
+
+          sCtx.clearRect(0, 0, 600, 320);
+
+          sCtx.save();
+          sCtx.beginPath();
+          sCtx.roundRect(80, 60, 440, 200, 30);
+          sCtx.clip();
+          sCtx.drawImage(offCanvas, 0, 0);
+          sCtx.restore();
+
+          sCtx.beginPath();
+          sCtx.strokeStyle = "rgba(255,255,255,0.5)";
+          sCtx.lineWidth = 6;
+          sCtx.roundRect(80, 60, 440, 200, 30);
+          sCtx.stroke();
+
+          if (state.force > 50) {
+            sCtx.beginPath();
+            sCtx.arc(dangerPt.x, dangerPt.y, 15, 0, Math.PI * 2);
+            sCtx.fillStyle = "rgba(0,0,0,0.3)";
+            sCtx.fill();
+          }
+
+          if (state.force >= 80)
+            document.getElementById("targetBox").innerText =
+              "请点击色彩最密集的暗伤区";
+        };
+
+        canvas.onclick = function (e) {
+          if (state.force < 80) return;
+          const rect = this.getBoundingClientRect();
+          const x = (e.clientX - rect.left) * (this.width / rect.width);
+          const y = (e.clientY - rect.top) * (this.height / rect.height);
+
+          if (Math.sqrt((x - dangerPt.x) ** 2 + (y - dangerPt.y) ** 2) < 80) {
+            sCtx.beginPath();
+            sCtx.strokeStyle = "#4ade80";
+            sCtx.lineWidth = 5;
+            sCtx.arc(dangerPt.x, dangerPt.y, 60, 0, Math.PI * 2);
+            sCtx.stroke();
+            if (!hasTriggeredWin) {
+              hasTriggeredWin = true;
+              setTimeout(
+                () =>
+                  levelWin(
+                    "L4 探伤成功！",
+                    "应力集中效应",
+                    "干涉色密度直观反映了应力梯度。你精准定位了隐藏的暗伤。这正是飞机制造和桥梁检测中的核心光学技术！",
+                  ),
+                500,
+              );
+            }
+          } else {
+            sCtx.beginPath();
+            sCtx.strokeStyle = "rgba(239,68,68,0.8)";
+            sCtx.arc(x, y, 20, 0, Math.PI * 2);
+            sCtx.stroke();
+            document.getElementById("targetBox").className =
+              "text-base font-black text-red-400 font-mono text-glow transition-colors";
+            document.getElementById("targetBox").innerText =
+              "未击中核心，请重试";
+            setTimeout(() => {
+              if (state.force >= 80) {
+                document.getElementById("targetBox").className =
+                  "text-base font-black text-yellow-400 font-mono text-glow transition-colors";
+                document.getElementById("targetBox").innerText =
+                  "请点击色彩最密集的暗伤区";
+              }
+            }, 1200);
+          }
+        };
+      }
+
+      const artCtx = document.getElementById("artCanvas").getContext("2d");
+      const artData = [
+        { t: "rect", x: 0, y: 0, w: 420, h: 420, r: 800, a: 0 },
+        ...Array.from({ length: 12 }).map((_, i) => ({
+          t: "petal",
+          cx: 210,
+          cy: 190,
+          rx: 20,
+          ry: 80,
+          ang: (i * Math.PI) / 6,
+          r: 450,
+          a: i * 15,
+        })),
+        { t: "circle", cx: 210, cy: 190, rad: 55, r: 1100, a: 45 },
+        { t: "rect", x: 150, y: 280, w: 120, h: 140, r: 550, a: 15 },
+      ];
+
+      function drawArt(theta) {
+        artCtx.clearRect(0, 0, 420, 420);
+        artData.forEach((p) => {
+          const c = calculatePhysics(p.r, p.a, theta, false);
+          artCtx.fillStyle = `rgb(${c.r}, ${c.g}, ${c.b})`;
+          artCtx.beginPath();
+          if (p.t === "rect") artCtx.fillRect(p.x, p.y, p.w, p.h);
+          else if (p.t === "circle") {
+            artCtx.arc(p.cx, p.cy, p.rad, 0, Math.PI * 2);
+            artCtx.fill();
+          } else if (p.t === "petal") {
+            artCtx.save();
+            artCtx.translate(p.cx, p.cy);
+            artCtx.rotate(p.ang);
+            artCtx.ellipse(0, 60, p.rx, p.ry, 0, 0, Math.PI * 2);
+            artCtx.fill();
+            artCtx.restore();
+          }
+        });
+        document.getElementById("artAnalyzer").style.backgroundColor =
+          `rgba(0,0,0,${(theta / 90) * 0.4})`;
+      }
+
+      loadLevel(1);
+    </script>
+  </body>
+</html>
